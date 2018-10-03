@@ -28,7 +28,6 @@ class SearchViewController: UIViewController {
     private var notification: NSObjectProtocol?
     private var notificationWhenTerminated: NSObjectProtocol?
 
-    
     // MARK: - View Life Circle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -45,14 +44,13 @@ class SearchViewController: UIViewController {
         
         notification = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: OperationQueue.main) { [unowned self] (nitification) in
             
-            self.search.cancelOutstandingRequests()
+             print("--> will did enter background notification", self)
         }
         
         notificationWhenTerminated = NotificationCenter.default.addObserver(forName: UIApplication.willTerminateNotification, object: nil, queue: OperationQueue.main) { [unowned self] (nitification) in
             
-            print("--> will terminate notification")
+            print("--> will terminate notification", self)
             
-            self.search.cancelOutstandingRequests()
         }
         
     }
@@ -90,13 +88,8 @@ extension SearchViewController: UISearchBarDelegate {
         {
             search.performSearch(for: searchBar.text!, category: category) { success, error  in
                 if error != nil {
-                    self.showNetworkError(error)
+                    self.showNetworkError()
                 }
-
-//                if !success {
-//                    self.showNetworkError(error)
-//                    return
-//                }
                 
                 self.tableView.reloadData()
                 self.landscapeViewController?.searchResultsReceived()
@@ -107,12 +100,11 @@ extension SearchViewController: UISearchBarDelegate {
         searchBar.resignFirstResponder()
     }
     
-    fileprivate func showNetworkError(_ error: NSError?) {
-        let errorString: String = "\(error?.code ?? 0000)"
+    fileprivate func showNetworkError() {
         
         let alert = UIAlertController(
             title: NSLocalizedString("Whoops...", comment: "Error alert: title"),
-            message: NSLocalizedString("There was an error reading from the iTunes Store. Error code is \(errorString)", comment: ""),
+            message: NSLocalizedString("There was an error reading from the iTunes Store.", comment: ""),
             preferredStyle: .alert
         )
         

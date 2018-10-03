@@ -47,11 +47,6 @@ class Search {
 
 // MARK: - Networking
 extension Search {
-    public func cancelOutstandingRequests() {
-        print("--> cancel outstanding requests")
-        //dataTask?.cancel()
-//        self.dataTask = nil
-    }
     
     func performSearch(for text: String, category: Category, completion: @escaping SearchComplete) {
         dataTask?.cancel()
@@ -68,21 +63,6 @@ extension Search {
                 if let error = error as NSError?, error.code == -999 {
                     return   // Search was cancelled
                 }
-                
-                //----
-                if let jsonData = data, let jsonDictionary = self.parse(json: jsonData)  {
-                    var searchResults = self.parse(dictionary: jsonDictionary)
-                    
-                    DispatchQueue.main.async {
-                        if searchResults.isEmpty {
-                            self.showAlert("Error localized description \( (response as? HTTPURLResponse)?.description  ?? "")")
-                        } else {
-                            searchResults.sort(by: <)
-                            self.showAlert("\(searchResults.count)")
-                        }
-                    }
-                }
-                //----
                 
                 if let httpResponse = response as? HTTPURLResponse,
                     httpResponse.statusCode == 200,
@@ -108,29 +88,6 @@ extension Search {
             dataTask?.resume()
         }
     }
-    
-    
-    // for tests 
-    fileprivate func showAlert(_ message: String) {
-        let alert = UIAlertController(
-            title: NSLocalizedString("Alert from Session", comment: ""),
-            message: NSLocalizedString("Parsed data: \(message)", comment: ""),
-            preferredStyle: .alert
-        )
-        
-        let action = UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .default, handler: nil)
-        alert.addAction(action)
-        
-        var rootViewController = UIApplication.shared.keyWindow?.rootViewController
-        if let navigationController = rootViewController as? UINavigationController {
-            rootViewController = navigationController.viewControllers.first
-        }
-        if let tabBarController = rootViewController as? UITabBarController {
-            rootViewController = tabBarController.selectedViewController
-        }
-        rootViewController?.present(alert, animated: true, completion: nil)
-    }
-    //---
     
     fileprivate func iTunesURL(searchText: String, category: Category) -> URL {
         let entityName = category.entityName
