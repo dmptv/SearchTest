@@ -8,7 +8,7 @@
 
 import UIKit
 
-typealias SearchComplete = (Bool) -> Void
+typealias SearchComplete = (Bool, NSError?) -> Void
 
 class Search {
     enum Category: Int {
@@ -34,27 +34,34 @@ class Search {
         case results( [SearchResult] )
     }
     
-    // variable is private, but only half
     fileprivate(set) var state: State = .notSearchedYet
     
-    fileprivate var dataTask: URLSessionDataTask? = nil
+    // можно создать модель - DataTask
+    let session = URLSession(configuration: .default)
+    var dataTask: URLSessionDataTask?
+    
+    init() {
+
+    }
 }
 
 // MARK: - Networking
 extension Search {
-    // all the user interface logic has been removed.
-    // The purpose of Search is just to perform a search,
-    // it should not do any UI stuff. That’s the job of the view controller
+    public func cancelOutstandingRequests() {
+        print("--> cancel outstanding requests")
+        //dataTask?.cancel()
+//        self.dataTask = nil
+    }
     
     func performSearch(for text: String, category: Category, completion: @escaping SearchComplete) {
+        dataTask?.cancel()
+
         if !text.isEmpty {
-            
-            dataTask?.cancel()
             UIApplication.shared.isNetworkActivityIndicatorVisible = true
             state = .loading
             
             let url = iTunesURL(searchText: text, category: category)
-            let session = URLSession.shared
+            
             dataTask = session.dataTask(with: url, completionHandler: { data, response, error in
                 var success = false
                 
@@ -62,7 +69,25 @@ extension Search {
                     return   // Search was cancelled
                 }
                 
-                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200, let jsonData = data, let jsonDictionary = self.parse(json: jsonData) {
+                //----
+                if let jsonData = data, let jsonDictionary = self.parse(json: jsonData)  {
+                    var searchResults = self.parse(dictionary: jsonDictionary)
+                    
+                    DispatchQueue.main.async {
+                        if searchResults.isEmpty {
+                            self.showAlert("Error localized description \( (response as? HTTPURLResponse)?.description  ?? "")")
+                        } else {
+                            searchResults.sort(by: <)
+                            self.showAlert("\(searchResults.count)")
+                        }
+                    }
+                }
+                //----
+                
+                if let httpResponse = response as? HTTPURLResponse,
+                    httpResponse.statusCode == 200,
+                    let jsonData = data,
+                    let jsonDictionary = self.parse(json: jsonData) {
                     
                     var searchResults = self.parse(dictionary: jsonDictionary)
                     if searchResults.isEmpty {
@@ -71,30 +96,53 @@ extension Search {
                         searchResults.sort(by: <)
                         self.state = .results(searchResults)
                     }
+                    
                     success = true
                 }
                 
                 DispatchQueue.main.async {
                     UIApplication.shared.isNetworkActivityIndicatorVisible = false
-                    completion(success)
+                    completion(success, (error as NSError?))
                 }
             })
             dataTask?.resume()
         }
     }
     
+    
+    // for tests 
+    fileprivate func showAlert(_ message: String) {
+        let alert = UIAlertController(
+            title: NSLocalizedString("Alert from Session", comment: ""),
+            message: NSLocalizedString("Parsed data: \(message)", comment: ""),
+            preferredStyle: .alert
+        )
+        
+        let action = UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .default, handler: nil)
+        alert.addAction(action)
+        
+        var rootViewController = UIApplication.shared.keyWindow?.rootViewController
+        if let navigationController = rootViewController as? UINavigationController {
+            rootViewController = navigationController.viewControllers.first
+        }
+        if let tabBarController = rootViewController as? UITabBarController {
+            rootViewController = tabBarController.selectedViewController
+        }
+        rootViewController?.present(alert, animated: true, completion: nil)
+    }
+    //---
+    
     fileprivate func iTunesURL(searchText: String, category: Category) -> URL {
         let entityName = category.entityName
-        let locale = Locale.autoupdatingCurrent
-        let language = locale.identifier // instead of locale.languageCode
+        
+        let locale = Locale.current
+        let language = locale.languageCode ?? "en"
         let countryCode = locale.regionCode ?? "US"
         
         // method to escape the special characters ((+)(%20) < > )
         let escapedSearchText = searchText.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)!
-        let urlString =
-            String(format: "https://itunes.apple.com/search?term=%@&limit=200&entity=%@&lang=%@&country=%@",
+        let urlString = String(format: "https://itunes.apple.com/search?term=%@&limit=200&entity=%@&lang=%@&country=%@",
                    escapedSearchText, entityName, language, countryCode)
-
         
         let url = URL(string: urlString)
         print("URL: \(url!)")
@@ -124,10 +172,10 @@ extension Search {
         var searchResults: [SearchResult] = []
         for resultDict in array {
             if let resultDict = resultDict as? [String: Any] {
-                // Indexing a dictionary always gives you an optional
                 var searchResult: SearchResult?
+                
                 if let wrapperType = resultDict["wrapperType"] as? String {
-                    // instead of (if 'wrapperType' == "track")
+                    
                     wrapperType: switch wrapperType {
                     case "track":
                         searchResult = parse(track: resultDict)
@@ -141,14 +189,19 @@ extension Search {
                     if let result = searchResult {
                         searchResults.append(result)
                     }
+                    
                 } else if let kind = resultDict["kind"] as? String {
                     kind: switch kind {
                     case "ebook":
                         searchResult = parse(ebook: resultDict)
+                        if let result = searchResult {
+                            searchResults.append(result)
+                        }
                     default:
                         break kind
                     }
                 }
+                
             }
         }
         return searchResults
@@ -191,6 +244,7 @@ extension Search {
     }
     
     fileprivate func parse(software dictionary: [String: Any]) -> SearchResult {
+        
         let searchResult = SearchResult()
         searchResult.name = dictionary["trackName"] as! String
         searchResult.artistName = dictionary["artistName"] as! String
@@ -220,11 +274,14 @@ extension Search {
         if let price = dictionary["price"] as? Double {
             searchResult.price = price
         }
+
         if let genres: Any = dictionary["genres"] {
             searchResult.genre = (genres as! [String]).joined(separator: ", ")
         }
+
         return searchResult
     }
+    
 }
 
 

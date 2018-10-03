@@ -9,8 +9,6 @@
 import UIKit
 
 extension AppDelegate {
-    // By making properties for these view controllers you can easily refer to them without
-    // having to go digging through the hierarchy
     var splitViewController: UISplitViewController {
         // initial controller
         return window!.rootViewController as! UISplitViewController
@@ -33,7 +31,6 @@ extension AppDelegate {
 
 extension AppDelegate: UISplitViewControllerDelegate {
     func splitViewController(_ svc: UISplitViewController, willChangeTo displayMode: UISplitViewController.DisplayMode) {
-        // prints out the name of the current function
         print(#function)
         if displayMode == .primaryOverlay {
             // dismisses any presented view controller if the master pane becomes visible
@@ -69,6 +66,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationWillResignActive(_ application: UIApplication) {
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
         // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.
+        
+        print("--> application will resign active")
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {

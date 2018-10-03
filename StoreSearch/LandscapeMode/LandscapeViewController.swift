@@ -18,6 +18,8 @@ class LandscapeViewController: UIViewController {
     fileprivate var firstTime = true
     
     fileprivate var downloadTasks = [URLSessionDownloadTask]()
+    
+    private var notification: NSObjectProtocol?
  
 // MARK: - View Life Circle
     override func viewDidLoad() {
@@ -25,6 +27,15 @@ class LandscapeViewController: UIViewController {
         
         setupViews()
         removeConstraints()
+        
+        notification = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: OperationQueue.main) { [unowned self] (nitification) in
+            
+            print("enter background")
+            
+            for task in self.downloadTasks {
+                task.cancel()
+            }
+        }
     }
     
     fileprivate func setupViews() {
@@ -115,6 +126,10 @@ class LandscapeViewController: UIViewController {
         for task in downloadTasks {
             task.cancel()
         }
+        
+        if let notification = notification {
+            NotificationCenter.default.removeObserver(notification)
+        }
     }
 }
 
@@ -171,9 +186,7 @@ extension LandscapeViewController {
                                   y: marginY + (CGFloat(row) * itemHeight) + paddingVert,
                                   width: buttonWidth,
                                   height: buttonHeight)
-            
-            // this places any subsequent button out of the visible range
-            // of the scroll view, but that’s the whole point
+
             scrollView.addSubview(button)
             
             row += 1
@@ -247,7 +260,6 @@ extension LandscapeViewController {
     fileprivate func downloadImage(for searchResult: SearchResult, andPlaceOn button: UIButton) {
         if let url = URL(string: searchResult.artworkSmallURL) {
             
-            // capture the button with a weak reference
             let downloadTask = URLSession.shared.downloadTask(with: url) { [weak button] url, response, error in
                 
                 if error == nil,

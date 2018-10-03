@@ -18,7 +18,6 @@ class GradientView: UIView {
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
         backgroundColor = UIColor.clear
-        // tells the view that it should change both its width and its height proportionally
         autoresizingMask = [.flexibleWidth , .flexibleHeight]
     }
     

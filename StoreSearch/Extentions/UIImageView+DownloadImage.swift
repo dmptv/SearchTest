@@ -18,8 +18,7 @@ extension UIImageView {
                     let image = UIImage(data: data) {
                     
                     DispatchQueue.main.async {
-                        // check whether “self” still exists if not,
-                        // then there is no more UIImageView to set the image on
+                      
                         if let strongSelf = self {
                             strongSelf.image = image
                         }

@@ -30,9 +30,7 @@ class SearchResultCell: UITableViewCell {
         selectedView.backgroundColor = Colors.tintColor
         selectedBackgroundView = selectedView
     }
-    
-    // Dynamic type
-    // when the user returns from changing the text size settings, the app should refresh the screen without needing a restart. You can do this by reloading the table view when the app receives a UIContentSizeCategoryDidChange notification
+
     
     func configure(for searchResult: SearchResult) {
         nameLabel.text = searchResult.name
@@ -55,7 +53,6 @@ class SearchResultCell: UITableViewCell {
     override func setSelected(_ selected: Bool, animated: Bool) {
         super.setSelected(selected, animated: animated)
 
-        // Configure the view for the selected state
     }
 
 }

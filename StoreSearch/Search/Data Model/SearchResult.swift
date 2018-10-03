@@ -8,6 +8,7 @@
 
 import Foundation
 
+
 // data driven approach
 fileprivate let displayNamesForKind = [
     "album": NSLocalizedString("Album", comment: "Localized kind: Album"),

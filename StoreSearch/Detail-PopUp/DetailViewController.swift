@@ -39,7 +39,6 @@ class DetailViewController: UIViewController {
     
     fileprivate var downloadTask: URLSessionDownloadTask?
     
-    // for dismiss animation
     fileprivate var dismissAnimationStyle = AnimationStyle.fade
     
     var isPopUp = false
@@ -70,8 +69,7 @@ class DetailViewController: UIViewController {
     }
     
     fileprivate func setupViews() {
-        // for action controls
-        view.tintColor = Colors.tintColor//UIColor(red: 20/255, green: 160/255, blue: 160/255, alpha: 1)
+        view.tintColor = Colors.tintColor
         popupView.layer.cornerRadius = 10
     }
     
@@ -201,9 +199,7 @@ extension DetailViewController: UIGestureRecognizerDelegate {
     }
     
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        // You only want to close the Detail screen when
-        // the user taps outside the pop-up, i.e. on the background.
-        // Any other taps should be ignored
+      
         return (touch.view === self.view)
     }
 }

@@ -9,7 +9,6 @@
 import UIKit
 
 class SearchViewController: UIViewController {
-    // use it for both - for nib's name and identifier
     struct TableViewCellIdentifiers {
         static let searchResultCell = "SearchResultCell"
         static let nothingFoundCell = "NothingFoundCell"
@@ -20,22 +19,22 @@ class SearchViewController: UIViewController {
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var segmentedControl: UISegmentedControl!
 
-    // searching
     let search = Search()
     
-    // rotate view
     fileprivate var landscapeViewController: LandscapeViewController?
     
-    // SearchViewController isn’t responsible for keeping it alive (the split-view controller is) - weak
     weak var splitViewDetail: DetailViewController?
+    
+    private var notification: NSObjectProtocol?
+    private var notificationWhenTerminated: NSObjectProtocol?
 
+    
     // MARK: - View Life Circle
     override func viewDidLoad() {
         super.viewDidLoad()
         
         title = NSLocalizedString("Search", comment: "Split-view master button")
         
-        // because search bar lies in table view
         tableView.contentInset = UIEdgeInsets(top: 108, left: 0, bottom: 0, right: 0)
         
         if UIDevice.current.userInterfaceIdiom != .pad {
@@ -43,6 +42,19 @@ class SearchViewController: UIViewController {
         }
         
         registerCells()
+        
+        notification = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: OperationQueue.main) { [unowned self] (nitification) in
+            
+            self.search.cancelOutstandingRequests()
+        }
+        
+        notificationWhenTerminated = NotificationCenter.default.addObserver(forName: UIApplication.willTerminateNotification, object: nil, queue: OperationQueue.main) { [unowned self] (nitification) in
+            
+            print("--> will terminate notification")
+            
+            self.search.cancelOutstandingRequests()
+        }
+        
     }
     
     fileprivate func registerCells() {
@@ -57,13 +69,16 @@ class SearchViewController: UIViewController {
     
     deinit {
         print("deinit \(self)")
+        if let notification = notification {
+            NotificationCenter.default.removeObserver(notification)
+        }
     }
 }
 
    // MARK: - Search Bar Delegate
 extension SearchViewController: UISearchBarDelegate {
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        performSearch()
+         performSearch()
     }
     
     @IBAction func segmentChanged(_ sender: UISegmentedControl) {
@@ -73,11 +88,16 @@ extension SearchViewController: UISearchBarDelegate {
     fileprivate func performSearch() {
         if let category = Search.Category(rawValue: segmentedControl.selectedSegmentIndex)
         {
-            search.performSearch(for: searchBar.text!, category: category) { success in
-                
-                if !success {
-                    self.showNetworkError()
+            search.performSearch(for: searchBar.text!, category: category) { success, error  in
+                if error != nil {
+                    self.showNetworkError(error)
                 }
+
+//                if !success {
+//                    self.showNetworkError(error)
+//                    return
+//                }
+                
                 self.tableView.reloadData()
                 self.landscapeViewController?.searchResultsReceived()
             }
@@ -87,10 +107,15 @@ extension SearchViewController: UISearchBarDelegate {
         searchBar.resignFirstResponder()
     }
     
-    fileprivate func showNetworkError() {
-        let alert = UIAlertController(title: NSLocalizedString("Whoops...", comment: "Error alert: title"),
-                                      message: NSLocalizedString("There was an error reading from the iTunes Store. Please try again.", comment: "Error alert: message"),
-                                      preferredStyle: .alert)
+    fileprivate func showNetworkError(_ error: NSError?) {
+        let errorString: String = "\(error?.code ?? 0000)"
+        
+        let alert = UIAlertController(
+            title: NSLocalizedString("Whoops...", comment: "Error alert: title"),
+            message: NSLocalizedString("There was an error reading from the iTunes Store. Error code is \(errorString)", comment: ""),
+            preferredStyle: .alert
+        )
+        
         let action = UIAlertAction(title: NSLocalizedString("OK", comment: "Error alert"), style: .default, handler: nil)
         alert.addAction(action)
         present(alert, animated: true, completion: nil)
@@ -121,17 +146,14 @@ extension SearchViewController: UITableViewDataSource {
         case .notSearchedYet:
             fatalError("Should never get here")
         case .loading:
-            let cell = tableView.dequeueReusableCell(withIdentifier: TableViewCellIdentifiers.loadingCell,
-                                                     for: indexPath)
+            let cell = tableView.dequeueReusableCell(withIdentifier: TableViewCellIdentifiers.loadingCell, for: indexPath)
             let spinner = cell.viewWithTag(100) as! UIActivityIndicatorView
             spinner.startAnimating()
             return cell
         case .noResults:
-            return tableView.dequeueReusableCell(withIdentifier: TableViewCellIdentifiers.nothingFoundCell,
-                                                 for: indexPath)
+            return tableView.dequeueReusableCell(withIdentifier: TableViewCellIdentifiers.nothingFoundCell, for: indexPath)
         case .results(let list):
-            let cell = tableView.dequeueReusableCell(withIdentifier: TableViewCellIdentifiers.searchResultCell,
-                                                     for: indexPath) as! SearchResultCell
+            let cell = tableView.dequeueReusableCell(withIdentifier: TableViewCellIdentifiers.searchResultCell, for: indexPath) as! SearchResultCell
             let searchResult = list[indexPath.row]
             cell.configure(for: searchResult)
             return cell
@@ -145,7 +167,6 @@ extension SearchViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         searchBar.resignFirstResponder()
         
-        // To determine whether the app runs on an iPhone versus an iPad
         if view.window!.rootViewController!.traitCollection.horizontalSizeClass == .compact {
             // On the iPhone
             tableView.deselectRow(at: indexPath, animated: true)
@@ -166,8 +187,8 @@ extension SearchViewController: UITableViewDelegate {
         UIView.animate(withDuration: 0.25, animations: {
             self.splitViewController!.preferredDisplayMode = .primaryHidden
         }, completion: { _ in
-            // The trick is to restore the preferred display mode to .automatic
-            // after the animation completes, otherwise the master pane
+            // restore .automatic
+            // otherwise the master pane
             // stays hidden even in landscape!
             self.splitViewController!.preferredDisplayMode = .automatic
         })
@@ -184,7 +205,6 @@ extension SearchViewController: UITableViewDelegate {
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "ShowDetail" {
-            // if case statement to look at a single case
             if case .results(let list) = search.state {
                 let detailViewController = segue.destination as! DetailViewController
                 let index = sender as! IndexPath
